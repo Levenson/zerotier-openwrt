@@ -5,7 +5,7 @@
 [ZeroTier One](https://www.zerotier.com) is a programm to create a global provider-independent virtual private cloud.
 This project offers OpenWrt packages for ZeroTier.
 
-## Installing prebuild package
+## Installing package
 
 Download the [prebuild package](https://github.com/mwarning/zerotier-openwrt/releases) and copy it onto your OpenWrt installation, preferably into the /tmp folder.
 Then install the ipk package file:
@@ -41,7 +41,9 @@ cd openwrt
 
 Now you can insert the zerotier package using a package feed or add the package manually.
 
-### Using a package feed
+### Add package by feed
+
+A feed is the standard way packages are made available to the OpenWrt build system.
 
 Put this line in your feeds list file (e.g. feeds.conf.default)
 ```
@@ -71,7 +73,6 @@ Now continue with the building packages section.
 Configure packages:
 
 ```
-make defconfig
 make menuconfig
 ```
 
@@ -85,7 +86,38 @@ Now compile/build everything:
 make
 ```
 
-The images and all *.ipk packages are now inside the bin/ folder, including the zerotier package.
-You can install the ZeroTier .ipk on the target device using "opkg install \<ipkg-file\>".
+The images and all \*.ipk packages are now inside the bin/ folder, including the zerotier package.
+You can install the ZeroTier .ipk on the target device using `opkg install <ipkg-file>`.
 
 For details please check the OpenWrt documentation.
+
+#### Build bulk packages
+
+For a release, it is useful the build packages at a bulk for multiple targets:
+
+```
+#!/bin/sh
+
+# dumpinfo.pl is used to get all targets configurations:
+# https://git.openwrt.org/?p=buildbot.git;a=blob;f=phase1/dumpinfo.pl
+
+./dumpinfo.pl architectures | while read pkgarch target1 rest; do
+  echo "CONFIG_TARGET_${target1%/*}=y" > .config
+  echo "CONFIG_TARGET_${target1%/*}_${target1#*/}=y" >> .config
+  echo "CONFIG_PACKAGE_example1=y" >> .config
+
+  # Debug output
+  echo "pkgarch: $pkgarch, target1: $target1"
+
+  make defconfig
+  make -j4 tools/install
+  make -j4 toolchain/install
+
+  # Build package
+  make package/zerotier/{clean,compile}
+
+  # Free space (optional)
+  rm -rf build_dir/target-*
+  rm -rf build_dir/toolchain-*
+done
+```
